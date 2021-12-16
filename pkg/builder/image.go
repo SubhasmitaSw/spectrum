@@ -16,7 +16,7 @@ func Pull(options Options) (v1.Image, error) {
 		return nil, fmt.Errorf("parsing tag %q: %v", options.Base, err)
 	}
 
-	remoteOptions := makeRemoteOptions(options.PullConfigDir)
+	remoteOptions := makeRemoteOptions(options)
 	return remote.Image(ref, remoteOptions...)
 }
 
@@ -27,7 +27,7 @@ func Push(img v1.Image, options Options) error {
 		return fmt.Errorf("parsing tag %q: %v", options.Target, err)
 	}
 
-	remoteOptions := makeRemoteOptions(options.PushConfigDir)
+	remoteOptions := makeRemoteOptions(options)
 	return remote.Write(tag, img, remoteOptions...)
 }
 
@@ -38,12 +38,15 @@ func makeNameOptions(insecure bool) (nameOptions []name.Option) {
 	return
 }
 
-func makeRemoteOptions(configDir string) (remoteOptions []remote.Option) {
-	if configDir != "" {
+func makeRemoteOptions(options Options) (remoteOptions []remote.Option) {
+	if configDir := options.PushConfigDir; configDir != "" {
 		keyChain := NewDirKeyChain(configDir)
 		remoteOptions = append(remoteOptions, remote.WithAuthFromKeychain(keyChain))
 	} else {
 		remoteOptions = append(remoteOptions, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	}
+	if jobs := options.Jobs; jobs > 0 {
+		remoteOptions = append(remoteOptions, remote.WithJobs(jobs))
 	}
 	return
 }
