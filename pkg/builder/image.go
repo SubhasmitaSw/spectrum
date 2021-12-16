@@ -2,12 +2,26 @@ package builder
 
 import (
 	"fmt"
+	"io/ioutil"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/cache"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
+
+// cached will cache layers from img using the fs cache
+
+var fs cache.Cache
+
+func init() {
+	dir, err := ioutil.TempDir("", "spectrum")
+	if err != nil {
+		panic(err)
+	}
+	fs = cache.NewFilesystemCache(dir)
+}
 
 func Pull(options Options) (v1.Image, error) {
 	nameOptions := makeNameOptions(options.PullInsecure)
@@ -17,7 +31,11 @@ func Pull(options Options) (v1.Image, error) {
 	}
 
 	remoteOptions := makeRemoteOptions(options)
-	return remote.Image(ref, remoteOptions...)
+	img, err := remote.Image(ref, remoteOptions...)
+	if err != nil {
+		return nil, err
+	}
+	return cache.Image(img, fs), nil
 }
 
 func Push(img v1.Image, options Options) error {
